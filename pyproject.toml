@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "beid-mw"
+version = "0.1.0"
+description = ""
+authors = ["mamisoa <mamisoa@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.115.12"
+pykcs11 = "^1.5.17"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
