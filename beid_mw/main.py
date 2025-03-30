@@ -1,13 +1,25 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 import os
-
+import sys
+import traceback
 import base64
 import platform
+import json
 
 # from eidreader import eid2dict
 from PyKCS11 import PyKCS11, CKA_CLASS, CKO_DATA, CKA_LABEL, CKA_VALUE, CKO_CERTIFICATE, PyKCS11Error
+
+try:
+    from beid_mw.logger import logger
+except ImportError:
+    import logging
+    logger = logging.getLogger("beid_mw")
+    logger.setLevel(logging.DEBUG)
+    handler = logging.StreamHandler(sys.stdout)
+    logger.addHandler(handler)
 
 app = FastAPI()
 
@@ -173,5 +185,82 @@ def eid2dict(certs=False):
 
 @app.get("/beid")
 def read_beid(certs: bool = False):
-    result = eid2dict(certs=certs)
-    return result
+    try:
+        logger.info("Processing /beid request")
+        result = eid2dict(certs=certs)
+        return result
+    except Exception as e:
+        logger.error(f"Error in /beid endpoint: {str(e)}")
+        logger.error(traceback.format_exc())
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"Server error: {str(e)}"}
+        )
+
+@app.get("/")
+def read_root():
+    return {"message": "Belgian eID Middleware API", "version": "0.1.3"}
+
+@app.get("/debug")
+def debug_info():
+    """Endpoint to get debug information about the environment"""
+    try:
+        logger.info("Processing /debug request")
+        info = {
+            "platform": platform.system(),
+            "python_version": platform.python_version(),
+            "environment": {
+                "PYKCS11LIB": os.environ.get("PYKCS11LIB", "Not set")
+            },
+            "library_exists": False,
+            "library_path": ""
+        }
+        
+        # Check if lib exists
+        lib_path = os.environ.get("PYKCS11LIB")
+        if lib_path and os.path.exists(lib_path):
+            info["library_exists"] = True
+            info["library_path"] = lib_path
+        else:
+            # Try to find the library
+            import glob
+            for path in ["/usr/lib*", "/lib*"]:
+                matches = glob.glob(f"{path}/**/libbeidpkcs11.so*", recursive=True)
+                if matches:
+                    info["library_path"] = matches[0]
+                    info["library_exists"] = os.path.exists(matches[0])
+                    break
+        
+        # Try to load PyKCS11
+        try:
+            pkcs11 = PyKCS11.PyKCS11Lib()
+            pkcs11.load()
+            info["pkcs11_load"] = "Success"
+            
+            # Check for slots
+            try:
+                slots = pkcs11.getSlotList()
+                info["slots_found"] = len(slots)
+                if len(slots) > 0:
+                    try:
+                        # Get slot info for first slot
+                        slot_info = pkcs11.getSlotInfo(slots[0])
+                        info["slot_info"] = {
+                            "description": slot_info.slotDescription.decode().strip(),
+                            "manufacturer": slot_info.manufacturerID.decode().strip()
+                        }
+                    except Exception as e:
+                        info["slot_info_error"] = str(e)
+            except Exception as e:
+                info["slots_error"] = str(e)
+        except Exception as e:
+            info["pkcs11_load_error"] = str(e)
+            
+        return info
+    except Exception as e:
+        logger.error(f"Error in /debug endpoint: {str(e)}")
+        logger.error(traceback.format_exc())
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e), "traceback": traceback.format_exc()}
+        )

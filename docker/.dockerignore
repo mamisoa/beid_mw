@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Git
+.git
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project specific
+tests/
+docs/
+README.md
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Keep these files
+!pyproject.toml
+!poetry.lock
+!beid_mw/ 
