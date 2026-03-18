@@ -37,8 +37,8 @@ Set the `PYKCS11LIB` environment variable for Ubuntu (add this to your shell pro
 echo 'export PYKCS11LIB=/usr/lib/x86_64-linux-gnu/libbeidpkcs11.so.0' >> ~/.bashrc
 ```
 
-> **Note:**  
-> If you are using Docker, you do **not** need to install the Belgian eID middleware or other system dependencies on your host. The Docker container includes everything required.
+> **Note:**
+> If you are using Docker, you still need `pcscd` and `libpcsclite1` installed on the host (see Docker section below).
 
 ### Additional requirement for Ubuntu 24.04: Service Policy (Polkit) for pcscd
 
@@ -134,19 +134,18 @@ If both commands succeed, the Polkit rule is working: your service can access th
 
 ### Python Dependencies
 
-This project uses [Poetry](https://python-poetry.org/) for dependency management.
+This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
 
-Install Poetry (if not already installed):
+Install uv (if not already installed):
 
 ```sh
-curl -sSL https://install.python-poetry.org | python3 -
-export PATH="$HOME/.local/bin:$PATH"
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 Install Python dependencies:
 
 ```sh
-poetry install
+uv sync
 ```
 
 ## Running the Application
@@ -154,7 +153,7 @@ poetry install
 Start the FastAPI server (from the project root):
 
 ```sh
-poetry run uvicorn beid_mw.main:app --host 0.0.0.0 --port 8080 --log-level debug
+uv run uvicorn beid_mw.main:app --host 0.0.0.0 --port 8080 --log-level debug
 ```
 
 The API will be available at [http://localhost:8080](http://localhost:8080).
@@ -163,12 +162,29 @@ The API will be available at [http://localhost:8080](http://localhost:8080).
 
 You can run the application in Docker for easier setup and deployment.
 
+### Host prerequisites
+
+The Docker container relies on the host's `pcscd` service and `libpcsclite` libraries (to avoid protocol version mismatch between container and host). Make sure the following are installed and running on the host:
+
+```sh
+sudo apt install pcscd libpcsclite1 libpcsclite-dev
+sudo systemctl start pcscd
+```
+
+The eID middleware must also be installed on the host (for the PKCS#11 library), see [System Dependencies](#system-dependencies) above.
+
 ### Development (with live reload)
 
 ```sh
 cd docker
-docker-compose up --build
+docker compose up --build
 ```
+
+The container:
+- Mounts the project directory for live reload
+- Mounts the host's `libpcsclite.so.1` and `libpcsclite_real.so.1` to match the host's pcscd protocol version
+- Mounts the host's pcscd socket (`/run/pcscd`)
+- Runs in privileged mode with host network for USB device access
 
 ### Production
 
@@ -177,8 +193,16 @@ docker build -t beid-mw:latest -f docker/Dockerfile .
 docker run -d --name beid-mw -p 8080:8080 --privileged \
     -v /dev/bus/usb:/dev/bus/usb \
     -v /run/pcscd:/run/pcscd \
+    -v /usr/lib/x86_64-linux-gnu/libpcsclite.so.1:/lib/x86_64-linux-gnu/libpcsclite.so.1.0.0:ro \
+    -v /usr/lib/x86_64-linux-gnu/libpcsclite_real.so.1:/lib/x86_64-linux-gnu/libpcsclite_real.so.1:ro \
     beid-mw:latest
 ```
+
+### Known limitations / TODO
+
+- **x86_64 only**: library paths are hardcoded to `/usr/lib/x86_64-linux-gnu/`. ARM64 would require different paths.
+- **Host pcscd dependency**: the container relies on the host's `pcscd` service and mounts its `libpcsclite` to avoid protocol version mismatch. A more portable approach would be to compile pcsc-lite from source inside the container or run `pcscd` directly in the container with exclusive USB access.
+- **Ubuntu 25.10 specific**: tested on Ubuntu 25.10 (questing) with pcsc-lite 2.3.3. Other distributions or versions with different pcsc-lite versions may require adjustments to the mounted libraries.
 
 See [docker/README.md](docker/README.md) for more details and troubleshooting.
 
@@ -187,7 +211,7 @@ See [docker/README.md](docker/README.md) for more details and troubleshooting.
 You can run the standalone test script to diagnose PyKCS11 and eID middleware issues:
 
 ```sh
-poetry run python beid_mw/test_pykcs11.py
+uv run python beid_mw/test_pykcs11.py
 ```
 
 This will check:

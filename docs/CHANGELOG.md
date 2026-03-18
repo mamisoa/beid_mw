@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2026-03-18
+
+### Changed
+- Upgraded Docker base image from `python:3.12-slim-bullseye` (Debian 11) to `python:3.12-slim-bookworm` (Debian 12) for glibc compatibility with host pcscd
+- Replaced embedded `eid-archive_latest.deb` GPG key approach with host-extracted `eid-released.gpg` key file to support bookworm repo signing (key `9123DBE767DA21A4` for 2025 releases)
+- Moved `start-dev.sh` from `/app/` to `/usr/local/bin/` in Dockerfile to prevent it being overwritten by the application volume mount
+- Simplified `docker-compose.yml`: removed obsolete `version` field, removed `USE_HOST_PCSCD` env var, removed non-existent `/dev/pcscd` device mapping
+- Streamlined `start-dev.sh`: removed `opensc-tool` and `pkcs11-tool` diagnostic calls (not installed), removed `pcsc_scan` blocking call
+
+### Added
+- Added `build-essential` and `swig` to Dockerfile.dev for compiling `pykcs11` from source
+- Added host `libpcsclite.so.1` and `libpcsclite_real.so.1` volume mounts in docker-compose to match host pcscd protocol version (2.3.3 vs container 1.9.9)
+- Added `eid-released.gpg` key file to `docker/` directory for eID Belgium APT repository authentication on bookworm
+- Added "Host prerequisites" section in README for Docker usage
+- Added "Known limitations / TODO" section in README documenting portability constraints (x86_64 only, host pcscd dependency, Ubuntu 25.10 specific)
+
+### Fixed
+- Fixed Docker container unable to read smart cards due to pcscd socket protocol version mismatch between host (pcsc-lite 2.3.3) and container (1.9.9)
+- Fixed `CKR_DEVICE_ERROR (0x00000030)` by mounting host's `libpcsclite_real.so.1` (required by pcsc-lite 2.x wrapper architecture)
+- Fixed eID middleware APT installation on bookworm by manually configuring signed repository (the old `.deb` package lacked the 2025 signing key)
+- Fixed container startup crash (`stat /app/start-dev.sh: no such file or directory`) caused by volume mount overwriting the copied script
+- Fixed root-owned `.venv` created by container conflicting with host venv (shared via volume mount)
+- Fixed duplicate volume mount entries in `docker-compose.yml`
+- Updated README to reflect current Docker requirements and limitations
+
+## [0.1.8] - 2026-03-18
+
+### Changed
+- Migrated from Poetry to uv for dependency management
+  - Converted `pyproject.toml` from Poetry format to PEP 621 standard with hatchling build backend
+  - Replaced `poetry.lock` with `uv.lock`
+  - Updated Docker images (production and dev) to use uv instead of Poetry
+  - Updated `start-dev.sh` to use `uv sync` and `uv run`
+  - Updated all documentation (README.md, CLAUDE.md) with uv commands
+
 ## [0.1.7] - 2025-03-30
 
 ### Added

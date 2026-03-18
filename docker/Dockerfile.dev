@@ -1,4 +1,4 @@
-FROM python:3.12-slim-bullseye
+FROM python:3.12-slim-bookworm
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -16,40 +16,28 @@ RUN apt-get update \
     gnupg \
     libc6 \
     libcap2-bin \
-    opensc \
     curl \
+    build-essential \
+    swig \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry
-ENV POETRY_VERSION=1.7.1 \
-    POETRY_HOME="/opt/poetry" \
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
-    POETRY_NO_INTERACTION=1
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
 
-RUN curl -sSL https://install.python-poetry.org | python3 -
-ENV PATH="$POETRY_HOME/bin:$PATH"
-
-# Copy the eID middleware package from docker directory
-COPY docker/eid-archive_latest.deb /tmp/eid-archive_latest.deb
-
-# Install the eID middleware package and its dependencies (but not pcscd)
-RUN dpkg -i /tmp/eid-archive_latest.deb || true \
-    && apt-get update \
-    && apt-get install -f -y \
+# Configure eID Belgium repo with GPG key and install middleware
+COPY docker/eid-released.gpg /usr/share/keyrings/eid-belgium.gpg
+RUN echo "deb [signed-by=/usr/share/keyrings/eid-belgium.gpg] https://files.eid.belgium.be/debian bookworm main" > /etc/apt/sources.list.d/eid.list \
     && apt-get update \
     && apt-get install -y eid-mw \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm /tmp/eid-archive_latest.deb
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Copy startup script
-COPY docker/start-dev.sh /app/start-dev.sh
-RUN chmod +x /app/start-dev.sh
-
-# Install uvicorn for development
-RUN pip install uvicorn
+# Copy startup script to a location not overridden by volume mount
+COPY docker/start-dev.sh /usr/local/bin/start-dev.sh
+RUN chmod +x /usr/local/bin/start-dev.sh
 
 # Command to run the application
-CMD ["/app/start-dev.sh"] 
+CMD ["/usr/local/bin/start-dev.sh"]

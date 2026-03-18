@@ -31,5 +31,5 @@ htmlcov/
 
 # Keep these files
 !pyproject.toml
-!poetry.lock
+!uv.lock
 !beid_mw/ 

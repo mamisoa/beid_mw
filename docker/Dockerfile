@@ -3,11 +3,7 @@ FROM python:3.12-slim-bullseye AS builder
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    POETRY_VERSION=1.7.1 \
-    POETRY_HOME="/opt/poetry" \
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
-    POETRY_NO_INTERACTION=1
+    PYTHONUNBUFFERED=1
 
 # Install system dependencies
 RUN apt-get update \
@@ -16,20 +12,18 @@ RUN apt-get update \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install poetry
-RUN curl -sSL https://install.python-poetry.org | python3 -
-ENV PATH="$POETRY_HOME/bin:$PATH"
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
 
 # Set working directory
 WORKDIR /app
 
 # Copy only requirements files
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml uv.lock ./
 
-# Install dependencies - fix lock file first, then install
-RUN poetry lock --no-update
-RUN poetry install --only main --no-root
-RUN poetry add uvicorn
+# Install dependencies
+RUN uv sync --no-dev --frozen
 
 # Final stage
 FROM python:3.12-slim-bullseye
@@ -89,7 +83,7 @@ COPY --from=builder /app/.venv ./.venv
 COPY ./beid_mw ./beid_mw
 
 # Copy root package files
-COPY pyproject.toml poetry.lock README.md ./
+COPY pyproject.toml uv.lock README.md ./
 
 # Copy startup script
 COPY docker/start.sh /app/start.sh
@@ -112,4 +106,4 @@ USER appuser
 EXPOSE 8080
 
 # Command to run the application
-CMD ["/app/start.sh"] 
+CMD ["/app/start.sh"]
