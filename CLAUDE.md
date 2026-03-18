@@ -14,7 +14,7 @@ uv sync
 
 # Run the server (requires eID middleware + card reader)
 export PYKCS11LIB=/usr/lib/x86_64-linux-gnu/libbeidpkcs11.so.0
-uv run uvicorn beid_mw.main:app --host 0.0.0.0 --port 8080 --log-level debug
+uv run uvicorn beid_mw.main:app --host 0.0.0.0 --port 8099 --log-level debug
 
 # Test PKCS#11 connectivity (diagnostic script)
 uv run python beid_mw/test_pykcs11.py
@@ -23,9 +23,9 @@ uv run python beid_mw/test_pykcs11.py
 cd docker && docker-compose up --build
 
 # API endpoints
-curl http://localhost:8080/          # version info
-curl http://localhost:8080/beid      # read eID card (add ?certs=true for certificates)
-curl http://localhost:8080/debug     # system diagnostics
+curl http://localhost:8099/          # version info
+curl http://localhost:8099/beid      # read eID card (add ?certs=true for certificates)
+curl http://localhost:8099/debug     # system diagnostics
 ```
 
 ## Architecture

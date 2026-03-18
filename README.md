@@ -153,10 +153,10 @@ uv sync
 Start the FastAPI server (from the project root):
 
 ```sh
-uv run uvicorn beid_mw.main:app --host 0.0.0.0 --port 8080 --log-level debug
+uv run uvicorn beid_mw.main:app --host 0.0.0.0 --port 8099 --log-level debug
 ```
 
-The API will be available at [http://localhost:8080](http://localhost:8080).
+The API will be available at [http://localhost:8099](http://localhost:8099).
 
 ## Docker
 
@@ -190,7 +190,7 @@ The container:
 
 ```sh
 docker build -t beid-mw:latest -f docker/Dockerfile .
-docker run -d --name beid-mw -p 8080:8080 --privileged \
+docker run -d --name beid-mw -p 8099:8099 --privileged \
     -v /dev/bus/usb:/dev/bus/usb \
     -v /run/pcscd:/run/pcscd \
     -v /usr/lib/x86_64-linux-gnu/libpcsclite.so.1:/lib/x86_64-linux-gnu/libpcsclite.so.1.0.0:ro \

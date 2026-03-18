@@ -14,7 +14,7 @@ docker-compose up -d
 This will:
 1. Build the Docker image
 2. Start the container with all necessary configurations
-3. Make the API accessible at http://localhost:8080
+3. Make the API accessible at http://localhost:8099
 
 To stop the container:
 ```bash
@@ -31,7 +31,7 @@ docker build -t beid-mw:latest -f docker/Dockerfile .
 
 Basic usage:
 ```bash
-docker run -d -p 8080:8080 --name beid-mw beid-mw:latest
+docker run -d -p 8099:8099 --name beid-mw beid-mw:latest
 ```
 
 For smart card access, you need to connect the container to your USB devices. There are two options:
@@ -41,7 +41,7 @@ For smart card access, you need to connect the container to your USB devices. Th
 ```bash
 docker run -d \
   --name beid-mw \
-  -p 8080:8080 \
+  -p 8099:8099 \
   --privileged \
   beid-mw:latest
 ```
@@ -51,7 +51,7 @@ docker run -d \
 ```bash
 docker run -d \
   --name beid-mw \
-  -p 8080:8080 \
+  -p 8099:8099 \
   --device /dev/bus/usb \
   beid-mw:latest
 ```
@@ -69,7 +69,7 @@ docker logs beid-mw
 
 The API will be accessible at:
 ```
-http://localhost:8080
+http://localhost:8099
 ```
 
 ## Troubleshooting
@@ -114,7 +114,7 @@ The container includes several debugging tools to help diagnose issues:
 
 5. Manually test the API:
    ```bash
-   curl http://localhost:8080/
+   curl http://localhost:8099/
    ```
 
 ### Common Issues and Solutions

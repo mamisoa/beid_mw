@@ -66,5 +66,5 @@ echo "Environment variables:"
 env | grep -E 'PYKCS11|PC|SC'
 
 # Start the application with debug logging
-echo "Starting FastAPI application on 0.0.0.0:8080..."
-exec uvicorn beid_mw.main:app --host 0.0.0.0 --port 8080 --log-level debug --workers 1 
+echo "Starting FastAPI application on 0.0.0.0:8099..."
+exec uvicorn beid_mw.main:app --host 0.0.0.0 --port 8099 --log-level debug --workers 1 

@@ -30,7 +30,7 @@ echo -e "\n==== Smart Card Readers ===="
 docker exec beid-mw pcsc_scan -n
 
 echo -e "\n==== Testing API Request ===="
-docker exec beid-mw curl -v http://localhost:8080/
+docker exec beid-mw curl -v http://localhost:8099/
 
 echo -e "\n==== Application Logs ===="
 docker exec beid-mw bash -c 'find / -name "beid_mw_*.log" -type f 2>/dev/null | xargs cat 2>/dev/null || echo "No log files found"'

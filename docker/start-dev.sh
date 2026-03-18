@@ -37,9 +37,9 @@ if [ -f "pyproject.toml" ]; then
   uv sync
 
   # Start the application with debug logging
-  echo "Starting FastAPI application on 0.0.0.0:8080..."
-  exec uv run uvicorn beid_mw.main:app --host 0.0.0.0 --port 8080 --log-level debug --reload
+  echo "Starting FastAPI application on 0.0.0.0:8099..."
+  exec uv run uvicorn beid_mw.main:app --host 0.0.0.0 --port 8099 --log-level debug --reload
 else
-  echo "Starting FastAPI application on 0.0.0.0:8080..."
-  exec uvicorn beid_mw.main:app --host 0.0.0.0 --port 8080 --log-level debug --reload
+  echo "Starting FastAPI application on 0.0.0.0:8099..."
+  exec uvicorn beid_mw.main:app --host 0.0.0.0 --port 8099 --log-level debug --reload
 fi

@@ -10,7 +10,7 @@ docker build -t beid-mw:latest -f docker/Dockerfile .
 # Run the container with proper device access
 docker run -d \
   --name beid-mw \
-  -p 8080:8080 \
+  -p 8099:8099 \
   --privileged \
   -v /dev/bus/usb:/dev/bus/usb \
   --device-cgroup-rule='c 189:* rmw' \

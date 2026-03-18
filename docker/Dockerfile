@@ -95,7 +95,7 @@ RUN pip install -e .
 # Change ownership to non-root user
 RUN chown -R appuser:appuser /app
 
-# Allow binding to port 8080 - fix for symlink issue
+# Allow binding to port 8099 - fix for symlink issue
 RUN python_path=$(readlink -f /app/.venv/bin/python3) && \
     setcap 'cap_net_bind_service=+ep' $python_path
 
@@ -103,7 +103,7 @@ RUN python_path=$(readlink -f /app/.venv/bin/python3) && \
 USER appuser
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8099
 
 # Command to run the application
 CMD ["/app/start.sh"]
