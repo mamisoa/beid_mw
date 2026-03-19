@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] - 2026-03-19
+
+### Added
+- `sanitize_date_of_birth()` function in `main.py` to normalize incomplete dates from eID cards (e.g., day/month = "00" when only year is known)
+- `_MONTH_MAP` dictionary with French/Dutch/German month name mappings for date validation
+
+### Fixed
+- eID cards with incomplete dates of birth (e.g., `dateofbirth="19450000"`) now return a valid date string (`"01 JAN 1945"`) instead of raw `"00       1945"` which caused downstream parsing failures
+
 ## [0.1.9] - 2026-03-18
 
 ### Changed

@@ -82,6 +82,67 @@ basic_key_hash
 carddata_appl_version
 """.split())
 
+_MONTH_MAP = {
+    "JANV": "01", "JAN": "01", "JANU": "01",
+    "FEVR": "02", "FEBR": "02", "FEV": "02", "FEB": "02",
+    "MARS": "03", "MAAR": "03", "MAR": "03", "MÄR": "03",
+    "AVRI": "04", "APRI": "04", "AVR": "04", "APR": "04",
+    "MAI": "05", "MEI": "05",
+    "JUIN": "06", "JUNI": "06", "JUN": "06",
+    "JUIL": "07", "JULI": "07", "JUL": "07",
+    "AOUT": "08", "AUGU": "08", "AOU": "08", "AUG": "08",
+    "SEPT": "09", "SEP": "09",
+    "OCTO": "10", "OKTO": "10", "OCT": "10", "OKT": "10",
+    "NOVE": "11", "NOV": "11",
+    "DECE": "12", "DEC": "12", "DEZ": "12",
+}
+
+
+def sanitize_date_of_birth(raw_date: str) -> str:
+    """Sanitize date_of_birth from eID card.
+
+    Some cards have incomplete dates (e.g. only year known, day/month = 00).
+    Normalizes invalid day/month to '01' so downstream consumers get a valid date string.
+
+    Args:
+        raw_date: Raw date string from eID card (e.g. "15 JANV 1980", "00       1945")
+
+    Returns:
+        Sanitized date string in same format "DD MONTH YYYY" with invalid parts replaced.
+    """
+    parts = raw_date.split()
+    parts = [p for p in parts if p.strip()]
+
+    if not parts:
+        return raw_date
+
+    # Only year present (single element)
+    if len(parts) == 1:
+        logger.warning(f"eID: incomplete date_of_birth '{raw_date}', only year found")
+        return f"01 JAN {parts[0]}"
+
+    # Two parts: could be "00 1945" (no month name)
+    if len(parts) == 2:
+        day, year = parts
+        if day == "00" or not day.isdigit() or int(day) < 1 or int(day) > 31:
+            day = "01"
+        logger.warning(f"eID: incomplete date_of_birth '{raw_date}', no month found")
+        return f"{day} JAN {year}"
+
+    # Three parts: "DD MONTH YYYY"
+    day, month_str, year = parts[0], parts[1], parts[-1]
+
+    if month_str.upper() not in _MONTH_MAP:
+        logger.warning(f"eID: unknown month '{month_str}' in date_of_birth")
+        month_str = "JAN"
+
+    if day == "00" or not day.isdigit() or int(day) < 1 or int(day) > 31:
+        logger.warning(f"eID: invalid day '{day}' in date_of_birth, defaulting to 01")
+        day = "01"
+
+    return f"{day} {month_str} {year}"
+
+
 _blob = set("""
 PHOTO_FILE
 DATA_FILE
@@ -166,6 +227,8 @@ def eid2dict(certs=False):
                 try:
                     if label in _utf8:
                         value = value.decode('utf-8')
+                        if label == 'date_of_birth':
+                            value = sanitize_date_of_birth(value)
                         data[label] = value
                     elif label in _ascii:
                         value = value.decode('ascii')
