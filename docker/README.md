@@ -72,6 +72,41 @@ The API will be accessible at:
 http://localhost:8099
 ```
 
+## Platform Support (Linux only)
+
+This image is **Linux-only** in practice. Although the production image is
+self-contained (it ships and starts its own `pcscd`), it still needs raw access
+to the **physical USB card reader**, which it gets through Linux USB passthrough:
+
+```bash
+--privileged
+-v /dev/bus/usb:/dev/bus/usb
+--device-cgroup-rule='c 189:* rmw'
+```
+
+### Why it does not work on Windows
+
+On Windows, Docker Desktop runs containers inside a **Linux VM (WSL2/Hyper-V)**,
+not directly on the host. As a result:
+
+1. `/dev/bus/usb` **does not exist** on the Windows host, so the bind mount is
+   empty or fails.
+2. Docker Desktop on Windows **does not support native USB passthrough** nor
+   `--privileged` device access for USB peripherals.
+3. The container's `pcscd` therefore starts but sees **no reader**, and `/beid`
+   returns "no reader / no card".
+
+This is a limitation of Docker Desktop on Windows, not of this project. The same
+applies to Docker Desktop on macOS (containers also run in a Linux VM).
+
+### Options for Windows
+
+| Option | Notes |
+|--------|-------|
+| **Native Windows eID middleware** (outside Docker) | The normal path on Windows. The official eid-mw has a Windows build that uses the Windows smart card service (WinSCard). This project, however, targets Linux/PKCS#11. |
+| **`usbipd-win` (USB/IP) → WSL2 → container** | Possible but heavy and fragile: install `usbipd-win`, `bind`/`attach` the reader to WSL2, then pass the device into the container. Not configured here. |
+| **Run on a Linux host/VM** | Simplest reliable option — run this stack on Linux (or a Linux VM) with the reader attached to it. |
+
 ## Troubleshooting
 
 If you encounter issues with smart card access:
