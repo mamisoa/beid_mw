@@ -206,6 +206,33 @@ Make sure the host's `pcscd` is not holding the reader (see Host prerequisites a
 
 This image is portable: build it once and ship it to another Linux host with `docker save | docker load` (or a registry) — the target only needs Docker and the card reader.
 
+### Should I disable the host's pcscd?
+
+**A USB reader can only be driven by one `pcscd` at a time.** On any given machine you must pick a single owner — either the host's `pcscd` or the container's. Running both against the same reader causes the `Open Port Failed` contention. This decision depends on what the machine is:
+
+- **Dedicated box / server (recommended for the production image):** disable the host `pcscd` entirely so the container is the sole owner of the reader — the cleanest setup, no contention:
+
+  ```sh
+  sudo systemctl disable --now pcscd.service pcscd.socket
+  sudo systemctl mask pcscd.service pcscd.socket
+  ```
+
+- **Workstation / developer machine: do *not* disable it.** The host `pcscd` is typically used by other applications that would break:
+  - the **eID Viewer** GUI app (`eid-viewer`),
+  - **browser-based eID login** (Firefox/Chromium load `/usr/lib/mozilla/pkcs11-modules/beidpkcs11.json` for government, banking and tax sites),
+  - **OpenSC** (`opensc-pkcs11`) and other smart-card tools,
+  - the **development image** of this project, which shares the host `/run/pcscd` socket.
+
+  On these machines, prefer the development image (it shares the host `pcscd`, so it coexists with the apps above). If you need to run the *production* image here occasionally, just stop the host `pcscd` for the duration and start it again afterwards — don't mask it:
+
+  ```sh
+  sudo systemctl stop pcscd.service pcscd.socket   # free the reader for the container
+  # ... run/test the production container ...
+  sudo systemctl start pcscd.socket                # hand the reader back to the host
+  ```
+
+  Note: the host `pcscd` is usually socket-activated with `--auto-exit`, so it only runs on demand and exits when idle — contention only occurs while another application is actively using the card.
+
 ### Known limitations / TODO
 
 - **x86_64 only**: library paths are hardcoded to `/usr/lib/x86_64-linux-gnu/`. ARM64 would require different paths.
