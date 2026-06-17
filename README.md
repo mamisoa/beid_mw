@@ -164,14 +164,18 @@ You can run the application in Docker for easier setup and deployment.
 
 ### Host prerequisites
 
-The Docker container relies on the host's `pcscd` service and `libpcsclite` libraries (to avoid protocol version mismatch between container and host). Make sure the following are installed and running on the host:
+There are two deployment modes with different host requirements:
 
-```sh
-sudo apt install pcscd libpcsclite1 libpcsclite-dev
-sudo systemctl start pcscd
-```
+- **Development image** (`Dockerfile.dev`, used by `docker compose`): relies on the host's `pcscd` service and `libpcsclite` libraries (mounted into the container to avoid a protocol version mismatch). Install and start them on the host:
 
-The eID middleware must also be installed on the host (for the PKCS#11 library), see [System Dependencies](#system-dependencies) above.
+  ```sh
+  sudo apt install pcscd libpcsclite1 libpcsclite-dev
+  sudo systemctl start pcscd
+  ```
+
+- **Production image** (`Dockerfile`): fully self-contained. It bundles the eID middleware and runs its **own** `pcscd` inside the container, so the host needs neither `pcscd` nor the eID middleware installed — only the card reader connected and **free** (the host's `pcscd` must not hold it; stop it with `sudo systemctl stop pcscd.service pcscd.socket`, or simply don't run it on a dedicated host).
+
+The eID middleware only needs to be installed on the host if you run the application **natively** (see [System Dependencies](#system-dependencies) above).
 
 ### Development (with live reload)
 
@@ -188,20 +192,24 @@ The container:
 
 ### Production
 
+The production image is self-contained (its own `pcscd`, eID middleware baked in). It only needs the USB reader passed through — no host `pcscd` socket or `libpcsclite` mounts:
+
 ```sh
 docker build -t beid-mw:latest -f docker/Dockerfile .
 docker run -d --name beid-mw -p 8099:8099 --privileged \
     -v /dev/bus/usb:/dev/bus/usb \
-    -v /run/pcscd:/run/pcscd \
-    -v /usr/lib/x86_64-linux-gnu/libpcsclite.so.1:/lib/x86_64-linux-gnu/libpcsclite.so.1.0.0:ro \
-    -v /usr/lib/x86_64-linux-gnu/libpcsclite_real.so.1:/lib/x86_64-linux-gnu/libpcsclite_real.so.1:ro \
+    --device-cgroup-rule='c 189:* rmw' \
     beid-mw:latest
 ```
+
+Make sure the host's `pcscd` is not holding the reader (see Host prerequisites above); otherwise the container's `pcscd` cannot open it.
+
+This image is portable: build it once and ship it to another Linux host with `docker save | docker load` (or a registry) — the target only needs Docker and the card reader.
 
 ### Known limitations / TODO
 
 - **x86_64 only**: library paths are hardcoded to `/usr/lib/x86_64-linux-gnu/`. ARM64 would require different paths.
-- **Host pcscd dependency**: the container relies on the host's `pcscd` service and mounts its `libpcsclite` to avoid protocol version mismatch. A more portable approach would be to compile pcsc-lite from source inside the container or run `pcscd` directly in the container with exclusive USB access.
+- **Host pcscd dependency (development image only)**: the `Dockerfile.dev` image relies on the host's `pcscd` service and mounts its `libpcsclite` to avoid a protocol version mismatch. The **production** image (`Dockerfile`) runs its own `pcscd` and has no such dependency — it only needs exclusive access to the USB reader.
 - **Ubuntu 25.10 specific**: tested on Ubuntu 25.10 (questing) with pcsc-lite 2.3.3. Other distributions or versions with different pcsc-lite versions may require adjustments to the mounted libraries.
 
 See [docker/README.md](docker/README.md) for more details and troubleshooting.

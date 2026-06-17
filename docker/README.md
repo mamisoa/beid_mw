@@ -77,7 +77,7 @@ http://localhost:8099
 If you encounter issues with smart card access:
 
 1. Make sure your smart card reader is properly connected to your host
-2. Check if pcscd is running on your host: `systemctl status pcscd`
+2. This image runs its **own** `pcscd` inside the container, so the host's `pcscd` must **not** hold the reader. If a host `pcscd` is running, stop it so the container can open the reader: `sudo systemctl stop pcscd.service pcscd.socket`
 3. Inspect the container logs: `docker logs beid-mw`
 
 ### Debugging Tools
@@ -125,9 +125,9 @@ The container includes several debugging tools to help diagnose issues:
    - Check if pcscd is running inside the container
    - Verify the PKCS11 library is correctly detected
 
-2. **PCSCD service not running**
+2. **PCSCD cannot open the reader (`Open Port Failed` in logs)**
+   - The host's `pcscd` is likely holding the reader — stop it: `sudo systemctl stop pcscd.service pcscd.socket`
    - Restart the container
-   - Ensure pcscd is installed on the host
    - Try running with `--privileged` flag for debugging
 
 3. **PKCS11 library not found**
