@@ -19,11 +19,11 @@ ENV PATH="/root/.local/bin:$PATH"
 # Set working directory
 WORKDIR /app
 
-# Copy only requirements files
-COPY pyproject.toml uv.lock ./
+# Copy only requirements files (README.md required by hatchling to build the project)
+COPY pyproject.toml uv.lock README.md ./
 
-# Install dependencies
-RUN uv sync --no-dev --frozen
+# Install dependencies only (the project itself is installed in the final stage)
+RUN uv sync --no-dev --frozen --no-install-project
 
 # Final stage
 FROM python:3.12-slim-bullseye
@@ -89,8 +89,10 @@ COPY pyproject.toml uv.lock README.md ./
 COPY docker/start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
-# Install the package in development mode for proper module discovery
-RUN pip install -e .
+# Install the package in development mode for proper module discovery.
+# Dependencies are already present in the venv copied from the builder, so skip
+# re-resolving/rebuilding them (pykcs11 needs swig/build-essential, absent here).
+RUN pip install -e . --no-deps
 
 # Change ownership to non-root user
 RUN chown -R appuser:appuser /app

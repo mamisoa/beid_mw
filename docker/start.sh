@@ -6,35 +6,23 @@ set -x
 pkill pcscd || true
 sleep 1
 
-# Start pcscd service in dedicated foreground mode
-pcscd -f --debug &
+# Start pcscd in the background (foreground mode keeps it in our process tree).
+# --debug is intentionally omitted: it floods the logs and slows card access.
+pcscd -f &
 PCSCD_PID=$!
 
-# Wait for pcscd to start
+# Give pcscd a moment to enumerate readers
 sleep 3
 
-# Verify pcscd is running
-if ! ps -p $PCSCD_PID > /dev/null; then
-    echo "Error: pcscd failed to start"
-    # Try alternative approach
-    pcscd --foreground --debug &
-    PCSCD_PID=$!
-    sleep 2
+# Verify pcscd is actually running (kill -0 works without procps installed)
+if ! kill -0 "$PCSCD_PID" 2>/dev/null; then
+  echo "Warning: pcscd did not stay up, retrying..."
+  pcscd -f &
+  PCSCD_PID=$!
+  sleep 2
 fi
 
-# Monitor USB devices - try to reset the reader
-echo "Resetting PC/SC system..."
-echo "Before reset:"
-pcsc_scan -n
-
-# Try resetting PC/SC system
-systemctl reset-failed pcscd.service || true
-systemctl restart pcscd.service || true
-
-# Monitor devices after reset
-echo "After reset:"
-pcsc_scan -n || echo "pcsc_scan failed"
-
+# Resolve the PKCS#11 library
 echo "PYKCS11LIB is set to: $PYKCS11LIB"
 if [ -f "$PYKCS11LIB" ]; then
   echo "PKCS11 library exists at $PYKCS11LIB"
@@ -49,22 +37,11 @@ else
   fi
 fi
 
-# List all connected devices
-echo "Connected USB devices:"
-lsusb || echo "lsusb not available"
-
-# Check if OpenSC can detect the card
-echo "Checking OpenSC card detection:"
-opensc-tool -l || echo "opensc-tool failed"
-
-# Test PKCS11 with OpenSC tools
-echo "Testing PKCS11 with OpenSC:"
-pkcs11-tool --module $PYKCS11LIB -L || echo "pkcs11-tool failed"
-
-# Print environment
-echo "Environment variables:"
-env | grep -E 'PYKCS11|PC|SC'
+# Non-blocking reader diagnostic. pcsc_scan loops forever when a reader is
+# present, so cap it with `timeout` and never let it block startup.
+echo "Reader scan (best effort, 5s):"
+timeout 5 pcsc_scan -n 2>/dev/null || echo "pcsc_scan skipped/timed out (not fatal)"
 
 # Start the application with debug logging
 echo "Starting FastAPI application on 0.0.0.0:8099..."
-exec uvicorn beid_mw.main:app --host 0.0.0.0 --port 8099 --log-level debug --workers 1 
+exec uvicorn beid_mw.main:app --host 0.0.0.0 --port 8099 --log-level debug --workers 1

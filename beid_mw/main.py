@@ -306,11 +306,14 @@ def debug_info():
                 info["slots_found"] = len(slots)
                 if len(slots) > 0:
                     try:
-                        # Get slot info for first slot
+                        # Get slot info for first slot. Depending on the
+                        # PyKCS11 version these fields come back as bytes or str.
+                        def _text(v):
+                            return (v.decode() if isinstance(v, bytes) else v).strip()
                         slot_info = pkcs11.getSlotInfo(slots[0])
                         info["slot_info"] = {
-                            "description": slot_info.slotDescription.decode().strip(),
-                            "manufacturer": slot_info.manufacturerID.decode().strip()
+                            "description": _text(slot_info.slotDescription),
+                            "manufacturer": _text(slot_info.manufacturerID)
                         }
                     except Exception as e:
                         info["slot_info_error"] = str(e)
