@@ -21,6 +21,50 @@ To stop the container:
 docker-compose down
 ```
 
+### Host requirements for dev mode
+
+The Compose setup uses the **dev image** (`Dockerfile.dev`), which does **not**
+run its own `pcscd`. Instead it borrows the host's PC/SC stack through the bind
+mounts in `docker-compose.yml`:
+
+```yaml
+- /run/pcscd:/run/pcscd                                 # host pcscd socket
+- /usr/lib/x86_64-linux-gnu/libpcsclite.so.1:...        # host pcsc library
+- /usr/lib/x86_64-linux-gnu/libpcsclite_real.so.1:...
+- /dev/bus/usb:/dev/bus/usb                             # USB reader
+```
+
+So the **host must be Linux x86_64** (the mount paths are `x86_64-linux-gnu`)
+and must provide that stack. On Debian/Ubuntu:
+
+```bash
+sudo apt-get install -y pcscd libpcsclite1 libccid
+sudo systemctl enable --now pcscd.socket
+```
+
+| Package | Why |
+|---------|-----|
+| **`pcscd`** | The PC/SC daemon. It creates `/run/pcscd/pcscd.comm`, the socket the dev container mounts and talks to (the dev image has no `pcscd` of its own — unlike production). |
+| **`libpcsclite1`** | Provides `libpcsclite.so.1` **and** `libpcsclite_real.so.1`. Compose mounts these host libraries into the container so the PC/SC protocol version matches the host `pcscd` — that is the purpose of the two `ro` mounts. |
+| **`libccid`** | The USB CCID reader driver. Without it the host `pcscd` starts but does not see the reader. (Usually pulled in as a `pcscd` dependency.) |
+| **Docker + Docker Compose** | To build and run. |
+
+You do **not** need to install the eID middleware / PKCS#11 library or Python
+on the host — those live inside the dev image.
+
+Quick check on a fresh machine:
+
+```bash
+systemctl is-active pcscd                                    # -> active
+ls -l /run/pcscd/pcscd.comm                                  # socket exists
+ls -l /usr/lib/x86_64-linux-gnu/libpcsclite_real.so.1        # library exists
+pcsc_scan                                                    # (pcsc-tools) sees the reader
+```
+
+`start-dev.sh` also checks for `/run/pcscd/pcscd.comm` at startup and warns if it
+is missing. The host `libpcsclite1` version must stay compatible with the host
+`pcscd` version (they ship together, so this holds by construction).
+
 ## Manual Building and Running
 
 ```bash
