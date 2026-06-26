@@ -158,6 +158,51 @@ uv run uvicorn beid_mw.main:app --host 0.0.0.0 --port 8099 --log-level debug
 
 The API will be available at [http://localhost:8099](http://localhost:8099).
 
+## Running as a systemd Service
+
+To start the server automatically at boot, create a systemd unit file:
+
+```sh
+sudo nano /etc/systemd/system/beid_mw.service
+```
+
+```ini
+[Unit]
+Description=Belgian eID Middleware REST API
+After=network.target pcscd.service
+Wants=pcscd.service
+
+[Service]
+Type=simple
+User=mamisoa
+WorkingDirectory=/home/mamisoa/code/beid_mw
+Environment=PYKCS11LIB=/usr/lib/x86_64-linux-gnu/libbeidpkcs11.so.0
+ExecStart=/home/mamisoa/code/beid_mw/.venv/bin/uvicorn beid_mw.main:app --host 0.0.0.0 --port 8099 --log-level info
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then enable and start it:
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl enable beid_mw.service
+sudo systemctl start beid_mw.service
+```
+
+Useful commands:
+
+```sh
+sudo systemctl status beid_mw    # check status
+sudo systemctl restart beid_mw   # restart
+sudo journalctl -u beid_mw -f    # live logs
+```
+
+> **Important — Polkit for systemd services:** when the server runs as a systemd service (i.e. outside an interactive desktop session), polkit blocks access to pcscd by default. Two distinct actions must be authorized: `access_pcsc` (connect to the daemon) **and** `access_card` (access the physical reader). Authorizing only `access_pcsc` is not enough — the service will connect to pcscd but fail with `CKR_DEVICE_ERROR` when trying to open the card slot. The Polkit rule in the [Prerequisites](#additional-requirement-for-ubuntu-2404-service-policy-polkit-for-pcscd) section above covers both actions.
+
 ## Docker
 
 You can run the application in Docker for easier setup and deployment.
